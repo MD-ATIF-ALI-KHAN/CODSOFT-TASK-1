@@ -286,6 +286,7 @@ def preprocess(df):
     d["FamilySize"] = d["SibSp"] + d["Parch"] + 1
     d["IsAlone"]    = (d["FamilySize"] == 1).astype(int)
     d["Title"]      = d["Name"].str.extract(r" ([A-Za-z]+)\.", expand=False)
+    d["Title"]      = d["Title"].fillna("Mr")  # Fill NaN titles
     d["Title"]      = d["Title"].replace(
         ["Lady","Countess","Capt","Col","Don","Dr","Major","Rev","Sir","Jonkheer","Dona"], "Rare"
     )
@@ -294,8 +295,14 @@ def preprocess(df):
     d["Sex_enc"]      = le.fit_transform(d["Sex"])
     d["Embarked_enc"] = le.fit_transform(d["Embarked"])
     d["Title_enc"]    = le.fit_transform(d["Title"])
-    d["AgeBand"]      = pd.cut(d["Age"], bins=5, labels=False)
-    d["FareBand"]     = pd.qcut(d["Fare"], q=4, labels=False)
+    d["AgeBand"]      = pd.cut(d["Age"], bins=5, labels=False).astype('float64')
+    d["FareBand"]     = pd.qcut(d["Fare"], q=4, labels=False, duplicates='drop').astype('float64')
+    # Fill any remaining NaN values after binning
+    d["AgeBand"].fillna(d["AgeBand"].median(), inplace=True)
+    d["FareBand"].fillna(d["FareBand"].median(), inplace=True)
+    # Drop any rows with remaining NaN
+    d = d.dropna(subset=["Pclass","Sex_enc","Age","Fare","FamilySize","IsAlone",
+                         "Embarked_enc","Title_enc","AgeBand","FareBand","Survived"])
     features = ["Pclass","Sex_enc","Age","Fare","FamilySize","IsAlone",
                 "Embarked_enc","Title_enc","AgeBand","FareBand"]
     return d, features
@@ -306,6 +313,10 @@ def train_models(df, features):
     d, _ = preprocess(df)
     X = d[features]
     y = d["Survived"]
+    # Drop any remaining rows with NaN values
+    mask = ~(X.isna().any(axis=1) | y.isna())
+    X = X[mask]
+    y = y[mask]
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
