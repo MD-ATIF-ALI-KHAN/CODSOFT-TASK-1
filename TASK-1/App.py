@@ -13,6 +13,7 @@ from sklearn.metrics import (
 )
 from sklearn.preprocessing import LabelEncoder
 import warnings
+import os
 warnings.filterwarnings("ignore")
 
 # ──────────────────────────────────────────────
@@ -267,7 +268,10 @@ plt.rcParams.update(MPL_STYLE)
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv("train.csv")
+    # Get the directory where this script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_path = os.path.join(script_dir, "train.csv")
+    df = pd.read_csv(csv_path)
     return df
 
 
